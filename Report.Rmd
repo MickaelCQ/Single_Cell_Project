@@ -1,0 +1,29 @@
+---
+title: "CAF Single cell Transcriptomics Analysis"
+author: 'Mickael Coquerelle & Loik Galtier '
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: '3'
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cerulean
+    highlight: tango
+  pdf_book:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(Seurat)
+library(future)
+library(ggplot2)
+
+# Parallelization and memory allocation
+plan(sequential)
+options(future.globals.maxSize=10*1024^3)
