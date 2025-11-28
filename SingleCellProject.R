@@ -25,7 +25,8 @@ rownames(caf.data) <- symb
 caf <- CreateSeuratObject(counts=caf.data, project="cafs",
                           min.cells=0.01*ncol(caf.data), min.features=1000)
 caf
-head(caf)
+# 12561 features across 3773 samples within 1 assay 
+# Active assay: RNA (12561 features, 0 variable features)
 
 
 
@@ -35,7 +36,6 @@ library(AnnotationDbi)
 library(EnsDb.Hsapiens.v86)
 
 
-
 # high mitochondrial gene % is likely to indicate dead cells
 # extract from ensdb
 ensdb.genes <- genes(EnsDb.Hsapiens.v86)
@@ -43,14 +43,15 @@ ensdb.genes <- genes(EnsDb.Hsapiens.v86)
 MT.names <- ensdb.genes[seqnames(ensdb.genes) == "MT"]$gene_name
 
 # get the count matrix
-counts <- GetAssayData(caf, "counts")
-
+counts <- GetAssayData(caf, "RNA")
+counts
 # data for cleaning data next
 umi.tot   <- colSums(counts)
 gene.tot  <- colSums(counts > 0)
 
 # percent of mito
 mito.pc <- colSums(counts[rownames(counts) %in% MT.names, ]) / umi.tot * 100
+mito.pc
 hist(mito.pc, breaks=50)
 
 # clean if lore than 50000 UMIs
@@ -59,12 +60,12 @@ bad.high <- umi.tot > 50000
 bad.low  <- gene.tot < 1000
 # clean if more than 50% of mito
 bad.mito <- mito.pc > 50
-
+bad.high | bad.low | bad.mito
 bad <- bad.high | bad.low | bad.mito
 
 # cleaning
 counts <- counts[, !bad]
-
+counts
 
 good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts)
 counts <- counts[good.genes, ]
@@ -75,4 +76,5 @@ caf <- CreateSeuratObject(counts = counts,
                           min.cells = 0,
                           min.features = 0)
 caf
-
+# 8958 features across 3728 samples within 1 assay 
+# Active assay: RNA (8958 features, 0 variable features)
