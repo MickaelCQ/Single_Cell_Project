@@ -127,7 +127,7 @@ ncountsUMAP.markers %>%
 # change to only keep gene from the list of professor
 top30 <- ncountsUMAP.markers %>%
   group_by(cluster) %>%
-  top_n (n=30 , wt = avg_log2FC )
+  top_n (n=5 , wt = avg_log2FC )
 DoHeatmap (ncountsUMAP, features = top30$gene ) + NoLegend()
 
 
