@@ -6,7 +6,6 @@ library(ComplexHeatmap)
 plan(sequential)
 options(future.globals.maxSize=10*1024**3)
 
-setwd("Projets_GIT/Single_Cell_Project/")
 p5 <-read.csv("/home/DROPRET/Documents/git/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
                sep="\t")
 p4a <- read.csv("/home/DROPRET/Documents/git/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
@@ -100,8 +99,60 @@ ncounts[["norm"]] <- CreateAssayObject(counts = norm)
 DefaultAssay(ncounts) <- "norm"
 ncounts <- FindVariableFeatures(ncounts, selection.method = "vst", nfeatures = 2000)
 ncounts <- ScaleData(ncounts)
-ncounts <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))
 
-DimPlot(ncounts, reduction = "pca")
+
+ncountsPCA <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))
+DimPlot(ncountsPCA, reduction = "pca")
+
+
+ncountsTSNE <- RunTSNE(ncounts, dims=1:10 , perplexity=30)
+DimPlot(ncountsTSNE, reduction = "tsne" , label = FALSE )
+
+
+ncountsUMAP <- RunUMAP(ncounts, dims=1:10)
+DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
+
+
+
+ncountsUMAP<-FindNeighbors(ncountsUMAP,dims=1:10)
+ncountsUMAP <- FindClusters ( ncountsUMAP , resolution =0.1)
+
+
+
+ncountsUMAP.markers <- FindAllMarkers ( ncountsUMAP , only.pos = TRUE , min.pct =0.25 ,
+                                   logfc.threshold =0.25)
+ncountsUMAP.markers %>%
+  group_by ( cluster ) %>%
+  slice_max ( n =2 , order_by = avg_log2FC )
+
+
+top10 <- ncountsUMAP.markers %>%
+  group_by(cluster) %>%
+  top_n (n=10 , wt = avg_log2FC )
+DoHeatmap (ncountsUMAP, features = top10$gene ) + NoLegend()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
