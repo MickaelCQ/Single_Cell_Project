@@ -11,6 +11,7 @@ p4a <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805566_CountsMatr
                 sep="\t")
 p4b <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
                 sep="\t")
+
 caf.data <- data.matrix(cbind(p5,p4a,p4b))
 ens <- read.csv("~/Téléchargements/CAFs/ensembl-38-108-genes.txt", sep="\t")
 ens2symb <- setNames(ens$Gene.name, ens$Gene.stable.ID)
@@ -44,25 +45,32 @@ MT.names <- ensdb.genes[seqnames(ensdb.genes) == "MT"]$gene_name
 
 # get the count matrix
 counts <- GetAssayData(caf, "RNA")
-counts
+
 # data for cleaning data next
 umi.tot   <- colSums(counts)
 gene.tot  <- colSums(counts > 0)
 
+sum(rownames(counts) %in% MT.names)
+
 # percent of mito
 mito.pc <- colSums(counts[rownames(counts) %in% MT.names, ]) / umi.tot * 100
-mito.pc
 hist(mito.pc, breaks=50)
 
 # clean if lore than 50000 UMIs
 bad.high <- umi.tot > 50000
 # clean if less than 1000 distinct gene
-bad.low  <- gene.tot < 1000
+bad.low  <- gene.tot < 2000
 # clean if more than 50% of mito
-bad.mito <- mito.pc > 50
-bad.high | bad.low | bad.mito
+bad.mito <- mito.pc > 20
+
 bad <- bad.high | bad.low | bad.mito
 
+' # to check the quantity of removed element
+table(bad.high)
+table(bad.low)
+table(bad.mito)
+table(bad)
+'
 # cleaning
 counts <- counts[, !bad]
 counts
@@ -78,3 +86,12 @@ caf <- CreateSeuratObject(counts = counts,
 caf
 # 8958 features across 3728 samples within 1 assay 
 # Active assay: RNA (8958 features, 0 variable features)
+# => features = gene, samples = cell. Changing the data before remove cell, but add gene (or reverso). its from line 
+# good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts).
+
+
+# elementary normalization
+ncounts <- log2(1 + sweep(counts, 2, colSums(counts), "/")*1e5)
+ncounts[1:5, 1:10]
+
+
