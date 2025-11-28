@@ -100,18 +100,17 @@ DefaultAssay(ncounts) <- "norm"
 ncounts <- FindVariableFeatures(ncounts, selection.method = "vst", nfeatures = 2000)
 ncounts <- ScaleData(ncounts)
 
-
+# realizing the pca for the data
 ncounts <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))
 DimPlot(ncounts, reduction = "pca")
 
-
+# pca is needed for realising the tsne
 ncountsTSNE <- RunTSNE(ncounts, dims=1:10 , perplexity=30)
 DimPlot(ncountsTSNE, reduction = "tsne" , label = FALSE )
 
 
 ncountsUMAP <- RunUMAP(ncounts, dims=1:10)
 DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
-
 
 
 ncountsUMAP<-FindNeighbors(ncountsUMAP,dims=1:10)
@@ -125,14 +124,17 @@ ncountsUMAP.markers %>%
   group_by ( cluster ) %>%
   slice_max ( n =2 , order_by = avg_log2FC )
 
-
-top10 <- ncountsUMAP.markers %>%
+# change to only keep gene from the list of professor
+top30 <- ncountsUMAP.markers %>%
   group_by(cluster) %>%
-  top_n (n=10 , wt = avg_log2FC )
-DoHeatmap (ncountsUMAP, features = top10$gene ) + NoLegend()
+  top_n (n=30 , wt = avg_log2FC )
+DoHeatmap (ncountsUMAP, features = top30$gene ) + NoLegend()
 
 
-
+DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
+FeaturePlot (ncountsUMAP, features = c ("PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11")) # 6 for each gene
+FeaturePlot (ncountsUMAP, features = c ("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2")) # 6 for each gene
+FeaturePlot (ncountsUMAP, features = c ("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")) # 6 for each gene
 
 
 
