@@ -5,7 +5,9 @@ library(future)
 library(ComplexHeatmap)
 plan(sequential)
 options(future.globals.maxSize=10*1024**3)
-p5 <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
+
+setwd("Projets_GIT/Single_Cell_Project/Data/")
+p5 <-("/home/DROPRET/Téléchargements/CAFs/CAFs") read.csv("/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
                sep="\t")
 p4a <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
                 sep="\t")
