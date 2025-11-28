@@ -93,11 +93,15 @@ caf
 
 
 # elementary normalization
-ncounts <- NormalizeData(counts)
-ncounts <- FindVariableFeatures(ncounts)
-ncounts <- ScaleData(ncounts, features = rownames(ncounts))
-ncounts <- RunPCA(ncounts, npcs = 30, features = VariableFeatures(ncounts))
+# two choice : passing by a matrix or by a seurat object. Seurat object can be really faster for pca than a matrix (5 sec vs 10 min). 
+norm <- log2(1 + sweep(counts, 2, colSums(counts), "/")*1e5)
+ncounts <- CreateSeuratObject(counts = counts)
+ncounts[["norm"]] <- CreateAssayObject(counts = norm)
+DefaultAssay(ncounts) <- "norm"
+ncounts <- FindVariableFeatures(ncounts, selection.method = "vst", nfeatures = 2000)
+ncounts <- ScaleData(ncounts)
+ncounts <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))
 
-length(VariableFeatures(ncounts))
-DimPlot(obj, reduction = "pca")
+DimPlot(ncounts, reduction = "pca")
+
 
