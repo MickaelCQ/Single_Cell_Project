@@ -59,9 +59,9 @@ hist(mito.pc, breaks=50)
 # clean if lore than 50000 UMIs
 bad.high <- umi.tot > 50000
 # clean if less than 1000 distinct gene
-bad.low  <- gene.tot < 2000
+bad.low  <- gene.tot < 1000
 # clean if more than 50% of mito
-bad.mito <- mito.pc > 20
+bad.mito <- mito.pc > 50
 
 bad <- bad.high | bad.low | bad.mito
 
