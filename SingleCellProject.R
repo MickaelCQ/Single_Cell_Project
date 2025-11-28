@@ -6,12 +6,12 @@ library(ComplexHeatmap)
 plan(sequential)
 options(future.globals.maxSize=10*1024**3)
 
-setwd("Projets_GIT/Single_Cell_Project/Data/")
-p5 <-("/home/DROPRET/Téléchargements/CAFs/CAFs") read.csv("/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
+setwd("Projets_GIT/Single_Cell_Project/")
+p5 <-read.csv("/home/DROPRET/Documents/git/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
                sep="\t")
-p4a <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
+p4a <- read.csv("/home/DROPRET/Documents/git/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
                 sep="\t")
-p4b <- read.csv("/home/DROPRET/Téléchargements/CAFs/CAFs/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
+p4b <- read.csv("/home/DROPRET/Documents/git/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
                 sep="\t")
 
 caf.data <- data.matrix(cbind(p5,p4a,p4b))
@@ -93,7 +93,11 @@ caf
 
 
 # elementary normalization
-ncounts <- log2(1 + sweep(counts, 2, colSums(counts), "/")*1e5)
-ncounts[1:5, 1:10]
+ncounts <- NormalizeData(counts)
+ncounts <- FindVariableFeatures(ncounts)
+ncounts <- ScaleData(ncounts, features = rownames(ncounts))
+ncounts <- RunPCA(ncounts, npcs = 30, features = VariableFeatures(ncounts))
 
+length(VariableFeatures(ncounts))
+DimPlot(obj, reduction = "pca")
 
