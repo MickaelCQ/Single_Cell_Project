@@ -124,11 +124,20 @@ ncountsUMAP.markers %>%
   group_by ( cluster ) %>%
   slice_max ( n =2 , order_by = avg_log2FC )
 
-# change to only keep gene from the list of professor
-top30 <- ncountsUMAP.markers %>%
-  group_by(cluster) %>%
-  top_n (n=5 , wt = avg_log2FC )
-DoHeatmap (ncountsUMAP, features = top30$gene ) + NoLegend()
+
+signatureGene <- c(
+  "PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
+  "PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
+  "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"
+)
+
+signatureGeneMarker <- ncountsUMAP.markers %>%
+  dplyr::filter(gene %in% signatureGene)
+signatureGeneMarker$gene <- factor(signatureGeneMarker$gene, levels = signatureGene)
+
+signatureGeneMarker <- signatureGeneMarker %>%
+  arrange(gene)
+DoHeatmap(ncountsUMAP, features = signatureGene) + NoLegend()
 
 
 DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
