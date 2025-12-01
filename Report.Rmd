@@ -13,7 +13,7 @@ output:
     theme: cerulean
     highlight: tango
     df_print: paged
-geometry: margin=1in
+geometry: margin=1cm
 fontsize: 11pt
 linestretch: 1.15
 bibliography: []
@@ -138,4 +138,63 @@ caf <- CreateSeuratObject(counts = counts,
 caf
 ```
 
-# Normalisation.
+# Normalisation avec SC Transform.
+La normalisation etant une étape charnière et pouvant grandement changer les résultats finaux en Single-Cell. Nous avons choisi ici d'exploiter les fonctionnalités de normalisation de la librairie Seurat. Plutôt qu’une normalisation CPM (par millions) ou LogNormalize, nous appliquons ici **SCTransform**, une méthode plus moderne et robuste, qui est construite sur un modèle négatif binomial (Hafemeister & Satija, 2019). De ce que nous en avons compris, une telle approche va agir sur plusieurs aspects : 
+- La normalisation par profondeur de séquençage,  
+- La stabilisation de variance,  
+- La sélection des gènes variables,  
+- La correction des effets techniques (ici regression des % mitochondriaux).
+Cette méthode est d'après la littérature **la référence Seurat** pour le pré-traitement.
+
+## Le modèle mathématique expliqué.
+
+La normalisation SCTransform repose sur un modèle de **régression négative binomiale**.  
+Pour chaque gène \(g\) et chaque cellule \(i\), on suppose : $y_{ig} \sim \text{NB}(\mu_{ig}, \theta_g)$
+où \(y_{ig}\) est le nombre de transcripts observés, \(\mu_{ig}\) la moyenne attendue de nos comptes et 
+\(\theta_g\) : le paramètre de dispersion du gène \(g\).
+La moyenne \(\mu_{ig}\) est modélisée via un lien log-linéaire.
+
+\[
+\log(\mu_{ig}) = \beta_{0g} + \beta_{1g} \cdot \log(\text{UMI}_i) + \sum_{k} \gamma_{kg} x_{ik}
+\]
+
+avec :
+
+- \(\beta_{0g}\) : intercept spécifique au gène \(g\)  
+- \(\text{UMI}_i\) : total de counts de la cellule \(i\) (size factor)  
+- \(x_{ik}\) : variables techniques à régresser (ex. % mitochondriaux, batch)  
+- \(\gamma_{kg}\) : coefficients associés aux covariables
+
+La normalisation finale utilisée pour l'analyse (PCA, clustering) est obtenue via les **résidus Pearson standardisés** :
+
+\[
+r_{ig} = \frac{y_{ig} - \hat{\mu}_{ig}}{\sqrt{\hat{\mu}_{ig} + \frac{\hat{\mu}_{ig}^2}{\theta_g}}}
+\]
+
+Ces résidus sont **variance-stabilisés** et permettent d'atténuer l'effet de la profondeur de séquençage et du bruit technique.
+
+## Application de la méthode
+```{r sctransform, message=FALSE, warning=FALSE}
+# Calcul du pourcentage mitochondrial pour régression
+caf[["percent.mt"]] <- PercentageFeatureSet(
+  caf, pattern = "^MT-"
+)
+
+# Normalisation moderne SCTransform
+caf <- SCTransform(
+  caf, # applique SCTransform
+  vars.to.regress = "percent.mt", # régresse l'effet des gènes mitochondriaux
+  verbose = TRUE # affiche la progression
+)
+```
+
+# Réduction de dimension, clustering et visualisation
+Nous procédons à la réduction de dimension via PCA, puis UMAP pour la visualisation. 
+Nous effectuons ensuite le clustering des cellules et identifions les marqueurs de chaque cluster.
+
+\textbf{Interprétation:}
+
+```{r PCA, message=FALSE, warning=FALSE}
+caf <- RunPCA(caf, verbose = FALSE)
+DimPlot(caf, reduction = "pca")
+```
