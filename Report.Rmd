@@ -151,27 +151,22 @@ Cette méthode est d'après la littérature **la référence Seurat** pour le pr
 La normalisation SCTransform repose sur un modèle de **régression négative binomiale**.  
 Pour chaque gène \(g\) et chaque cellule \(i\), on suppose : $y_{ig} \sim \text{NB}(\mu_{ig}, \theta_g)$
 où \(y_{ig}\) est le nombre de transcripts observés, \(\mu_{ig}\) la moyenne attendue de nos comptes et 
-\(\theta_g\) : le paramètre de dispersion du gène \(g\).
-La moyenne \(\mu_{ig}\) est modélisée via un lien log-linéaire.
-
+\(\theta_g\) : le paramètre de dispersion du gène \(g\). La moyenne \(\mu_{ig}\) est modélisée via un lien log-linéaire.
 \[
 \log(\mu_{ig}) = \beta_{0g} + \beta_{1g} \cdot \log(\text{UMI}_i) + \sum_{k} \gamma_{kg} x_{ik}
 \]
-
 avec :
-
 - \(\beta_{0g}\) : intercept spécifique au gène \(g\)  
 - \(\text{UMI}_i\) : total de counts de la cellule \(i\) (size factor)  
 - \(x_{ik}\) : variables techniques à régresser (ex. % mitochondriaux, batch)  
 - \(\gamma_{kg}\) : coefficients associés aux covariables
-
 La normalisation finale utilisée pour l'analyse (PCA, clustering) est obtenue via les **résidus Pearson standardisés** :
-
 \[
 r_{ig} = \frac{y_{ig} - \hat{\mu}_{ig}}{\sqrt{\hat{\mu}_{ig} + \frac{\hat{\mu}_{ig}^2}{\theta_g}}}
 \]
 
 Ces résidus sont **variance-stabilisés** et permettent d'atténuer l'effet de la profondeur de séquençage et du bruit technique.
+Avec cette approche, on à \textit{à priori} un modèle individuel pour chaque gène, et une normalisation \og cellule spécifique \fg.
 
 ## Application de la méthode
 ```{r sctransform, message=FALSE, warning=FALSE}
@@ -179,7 +174,6 @@ Ces résidus sont **variance-stabilisés** et permettent d'atténuer l'effet de 
 caf[["percent.mt"]] <- PercentageFeatureSet(
   caf, pattern = "^MT-"
 )
-
 # Normalisation moderne SCTransform
 caf <- SCTransform(
   caf, # applique SCTransform
@@ -190,11 +184,38 @@ caf <- SCTransform(
 
 # Réduction de dimension, clustering et visualisation
 Nous procédons à la réduction de dimension via PCA, puis UMAP pour la visualisation. 
-Nous effectuons ensuite le clustering des cellules et identifions les marqueurs de chaque cluster.
+Nous effectuons ensuite le clustering des cellules et identifions les marqueurs de chaque cluster.\\
 
-\textbf{Interprétation:}
+\textbf{Interprétation PCA:} l'ElbowPlot va nous aider  à faire le choix du nombre de dimensions pertinentes pour UMAP/TSNE. 
+Dans notre cas le choix \textbf{XXXXXXXX} premières composantes. \\
 
 ```{r PCA, message=FALSE, warning=FALSE}
 caf <- RunPCA(caf, verbose = FALSE)
 DimPlot(caf, reduction = "pca")
 ```
+
+\textbf{Interprétation UMAP:} \\
+
+```{r UMAP, message=FALSE, warning=FALSE}
+ncountsUMAP <- RunUMAP(ncounts, dims=1:10)
+DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
+
+ncountsUMAP<-FindNeighbors(ncountsUMAP,dims=1:10)
+ncountsUMAP <- FindClusters ( ncountsUMAP , resolution =0.1)
+
+ncountsUMAP.markers <- FindAllMarkers ( ncountsUMAP , only.pos = TRUE , min.pct =0.25 ,
+                                   logfc.threshold =0.25)
+ncountsUMAP.markers %>%
+  group_by ( cluster ) %>%
+  slice_max ( n =2 , order_by = avg_log2FC )
+```
+
+
+\textbf{Interprétation Clustering:} \\
+
+Remarques du prof : 
+
+Toutes les cellules sont des cafs, mais il existe plusieurs sous populations. Si on prends des marqueurs de certains CAFS, probablement ils vont sortir un peu partout, par contre il y'a un peu de différences dans les sous populations. Ce qu'on essaye de coprendre ici c'est les différences entre les CAFS. Ca veut dire on va chercher les genes qui sont dans chaque cluster, et avec cette listes on va voir si il y'a des signatures transcriptionnelles particuleires. C'est des CAF avec ce phénotype, c'est des CAF avec ce phénotypes ...... 
+
+Pour faire cela il faut prendre n gènes squi sont les plus exprimés dans chaque cluster. 
+n va utiliser la fonction FindAllMarkers de Seurat pour faire cela. Ce qui est intéressant c'est que Seurat quand on à des données spatiales il nous permet de regarder., par exemple, l'expression d'un gène dans chaque cluster. 
