@@ -73,16 +73,15 @@ table(bad.mito)
 table(bad)
 '
 # cleaning
-
+# Keep cells with at least 1000 distinct genes detected in 1% of the cells
 counts <- counts[, !bad.low]
-
 good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts)
 counts <- counts[good.genes, ]
 
+# Then eliminate cells with >50,000 total UMIs and >50% mitochondrial genes.
 bad <- bad[!bad.low]         # resize bad to match remaining cells
 counts <- counts[, !bad]
 
-counts
 dim(counts) #[1] 8958 3728
 
 caf <- CreateSeuratObject(counts = counts,
@@ -98,12 +97,29 @@ caf
 
 # elementary normalization
 # two choice : passing by a matrix or by a seurat object. Seurat object can be really faster for pca than a matrix (5 sec vs 10 min). 
-norm <- log2(1 + sweep(counts, 2, colSums(counts), "/")*1e5)
+
+# Calcul du pourcentage mitochondrial pour régression
+caf[["percent.mt"]] <- PercentageFeatureSet(
+  caf, pattern = "^MT-"
+)
+
+# Normalisation moderne SCTransform
+ncounts <- SCTransform(
+  caf, # applique SCTransform
+  vars.to.regress = "percent.mt", # régresse l'effet des gènes mitochondriaux
+  verbose = TRUE # affiche la progression
+)
+
+
+
+'norm <- log2(1 + sweep(counts, 2, colSums(counts), "/")*1e5)
 ncounts <- CreateSeuratObject(counts = counts)
 ncounts[["norm"]] <- CreateAssayObject(counts = norm)
 DefaultAssay(ncounts) <- "norm"
 ncounts <- FindVariableFeatures(ncounts, selection.method = "vst", nfeatures = 2000)
 ncounts <- ScaleData(ncounts)
+'
+
 
 # realizing the pca for the data
 ncounts <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))

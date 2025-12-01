@@ -186,16 +186,21 @@ caf <- SCTransform(
 Nous procédons à la réduction de dimension via PCA, puis UMAP pour la visualisation. 
 Nous effectuons ensuite le clustering des cellules et identifions les marqueurs de chaque cluster.\\
 
-\textbf{Interprétation PCA:} l'ElbowPlot va nous aider  à faire le choix du nombre de dimensions pertinentes pour UMAP/TSNE. 
-Dans notre cas le choix \textbf{XXXXXXXX} premières composantes. \\
+\textbf{Interprétation PCA:}\\
 
 ```{r PCA, message=FALSE, warning=FALSE}
 caf <- RunPCA(caf, verbose = FALSE)
 DimPlot(caf, reduction = "pca")
 ```
 
-\textbf{Interprétation UMAP:} \\
+\textbf{Interprétation TSNE:} \\
+```{r TSNE, message=FALSE, warning=FALSE}
+ncountsTSNE <- RunTSNE(ncounts, dims=1:10 , perplexity=30)
+DimPlot(ncountsTSNE, reduction = "tsne" , label = FALSE )
+```
 
+
+\textbf{Interprétation UMAP:} \\
 ```{r UMAP, message=FALSE, warning=FALSE}
 ncountsUMAP <- RunUMAP(ncounts, dims=1:10)
 DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
@@ -212,6 +217,38 @@ ncountsUMAP.markers %>%
 
 
 \textbf{Interprétation Clustering:} \\
+
+Chaque ligne correspond à une famille d'origine différente.
+La première représente les VSMC, la seconde ligne correspont a HSC, la troisième ligne représente lesSAMes
+```{r Gene d'intéret, message=FALSE, warning=FALSE}
+signatureGene <- c(
+  "PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
+  "PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
+  "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"
+)
+```
+
+
+```{r marqueur, message=FALSE, warning=FALSE}
+signatureGeneMarker <- ncountsUMAP.markers %>%
+  dplyr::filter(gene %in% signatureGene)
+signatureGeneMarker$gene <- factor(signatureGeneMarker$gene, levels = signatureGene)
+
+signatureGeneMarker <- signatureGeneMarker %>%
+  arrange(gene)
+```
+
+
+```{r graphique, message=FALSE, warning=FALSE}
+DoHeatmap(ncountsUMAP, features = signatureGene) + NoLegend()
+
+DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
+FeaturePlot (ncountsUMAP, features = c ("PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11")) # 6 for each gene
+FeaturePlot (ncountsUMAP, features = c ("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2")) # 6 for each gene
+FeaturePlot (ncountsUMAP, features = c ("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")) # 6 for each gene
+```
+
+
 
 Remarques du prof : 
 
