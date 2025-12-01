@@ -1,30 +1,141 @@
 ---
 title: "CAF Single cell Transcriptomics Analysis"
-author: 'Mickael Coquerelle & Loik Galtier '
+author: "Mickael Coquerelle & Loik Galtier"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
     toc: true
-    toc_depth: '3'
+    toc_depth: 3
+    number_sections: true
   html_document:
     toc: true
     toc_depth: 3
     theme: cerulean
     highlight: tango
-  pdf_book:
-    toc: true
-    toc_depth: 3
-    number_sections: true
+    df_print: paged
+geometry: margin=1in
+fontsize: 11pt
+linestretch: 1.15
+bibliography: []
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```{r setup, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
+# Setup global chunk options and libraries.
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 8, fig.height = 6)
+# Tidyverse-like utilities
 library(dplyr)
-library(Seurat)
-library(future)
 library(ggplot2)
-library(ComplexHeatmap)
-  
-# Parallelization and memory allocation
-plan(sequential)
-options(future.globals.maxSize=10*1024^3)
+# Seurat and single-cell specific tools
+library(Seurat)
+# Parallelization for Seurat (kept sequential by default in this report for reproducibility)
+library(future)
+# Annotation via Ensembl
+library(AnnotationDbi)
+library(EnsDb.Hsapiens.v86)
+sessionInfo()
+# Parallelisation:
+plan(sequential) 
+options(future.globals.maxSize=10*1024^3) # 10 GB
+
+```
+
+```{r load, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
+" data loading : we load the three datasets corresponding to three different patients' CAF single-cell RNA-seq data. "
+
+p5 <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz", sep="\t")
+p4a <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz", sep="\t")
+p4b <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz", sep="\t")
+
+```
+
+# Résumé
+L'objet de ce travail et de se familiariser avec l'analyse transcriptomique Single-Cell de CAF (Cancer Associated Fibroblasts) à partir d'une matrice de comptages issues des trois fichiers proposé. Notre pipeline d'analyse en se basant sur les éléments donnés en cours couvre le nettoyage (filtrage cellules/gènes), normalisation, réduction de dimension (PCA, t-SNE, UMPAP), clustering, identification de(s) signature(s) transcriptomique(s) pour marquer les clusters et enfin nous proposons une visualisation ciblée par heatmap et features plots.
+
+# Préparation des données.
+We combine the three datasets and map Ensembl IDs to gene symbols and types. the objectif is to filter for protein-coding genes with unique symbols and no missing values.
+## Pré-processing des données
+```{r data-preprocessing, results="hide", message=FALSE, warning=FALSE}
+caf.data <- data.matrix(cbind(p5,p4a,p4b))
+ens <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/ensembl-38-108-genes.txt", 
+                sep="\t")
+# map Ensembl IDs to genes symbols and types :
+ens2symb <- setNames(ens$Gene.name, ens$Gene.stable.ID) 
+ens2type <- setNames(ens$Gene.type, ens$Gene.stable.ID)
+symbols <- ens2symb[rownames(caf.data)] # map ensembl IDs to gene symbols
+
+# filter for protein-coding genes with unique symbols and no missing values :
+types <- ens2type[rownames(caf.data)] 
+# condition filter is defined here 
+good <- types=="protein_coding" & !is.na(symbols) & !duplicated(symbols) 
+sum(good) # number of genes passing the filter
+symb <- symbols[good]
+caf.data <- caf.data[good,]
+rownames(caf.data) <- symb
+```
+
+On crée un premier objet SeuratObject pour tirer profit des routines intégrées à la librairie
+(FindVariableFeatures, ScaleData, RunPCA, etc.):
+
+```{r create-seurat-object, results="hide", message=FALSE, warning=FALSE}
+caf <- CreateSeuratObject(counts=caf.data, project="cafs",
+                          min.cells=0.01*ncol(caf.data), min.features=1000) 
+#caf
+```
+
+## QC et filtrage des données
+
+Puis on va définir des filtres. La détermination de ces derniers se fait sur des règles d'usage en *single-cell.*
+*min.cells = 0.01* au premier passage pour exclures les gènes exprimés dans
+très peu de cellules (ici adapté au CreateSeuratObject).
+On applique ensuite des QC aux cellules : 
+- Les UMIs elevés (>50000) indiquent des duplicats il faut donc les gérer.
+- Les cellules avec peu de gènes détectés (< 1000) sont souvent de mauvaise qualité, 
+il y'a donc necessité de les filtrer. 
+- Ensuite on ajoute une condition pour gérer la proportion de gènes mitochondriaux
+élevée (> 50), qui est un indicateur de cellules mortes. 
+En combinant ces filtres, on nettoie notre dataset de manière avoir un jeu de cellule
+de haute qualité.
+
+```{r qc-filtering, results="hide", message=FALSE, warning=FALSE}
+ensdb.genes <- genes(EnsDb.Hsapiens.v86)# extract from ensdb
+# mito gene from MT chromosome
+MT.names <- ensdb.genes[seqnames(ensdb.genes) == "MT"]$gene_name
+counts <- GetAssayData(caf, "RNA") # get the count matrix
+
+# data for cleaning data next
+umi.tot   <- colSums(counts)
+gene.tot  <- colSums(counts > 0)
+sum(rownames(counts) %in% MT.names)
+
+# percent of mito :
+mito.pc <- colSums(counts[rownames(counts) %in% MT.names, ]) / umi.tot * 100
+bad.high<- umi.tot > 50000 ; bad.low<- gene.tot < 1000 ;bad.mito <- mito.pc > 50
+
+# Disjonction des filtres :
+bad <- bad.high | bad.low | bad.mito
+' # to check the quantity of removed element
+table(bad.high);table(bad.low);table(bad.mito);table(bad)
+'
+# Nettoyage effectif :
+counts <- counts[, !bad] ; counts
+good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts)
+counts <- counts[good.genes, ]
+dim(counts) #Pour vérifier les dimensions après nettoyage
+```
+Nous pouvons visualiser la distribution de la proportion de gènes mitochondriaux, avant nettoyage: 
+
+```{histo, message=FALSE, warning=FALSE}
+hist(mito.pc, breaks=50)
+```
+
+Nous mettons à jour notre objet Seurat avec les données nettoyées :
+```{r update-seurat-object, results='hide', message=FALSE, warning=FALSE}
+caf <- CreateSeuratObject(counts = counts,
+                          project = "CAF_clean",
+                          min.cells = 0,
+                          min.features = 0)
+caf
+```
+
+# Normalisation.
