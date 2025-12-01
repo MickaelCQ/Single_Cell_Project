@@ -73,12 +73,17 @@ table(bad.mito)
 table(bad)
 '
 # cleaning
-counts <- counts[, !bad]
-counts
+
+counts <- counts[, !bad.low]
 
 good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts)
 counts <- counts[good.genes, ]
-dim(counts)
+
+bad <- bad[!bad.low]         # resize bad to match remaining cells
+counts <- counts[, !bad]
+
+counts
+dim(counts) #[1] 8958 3728
 
 caf <- CreateSeuratObject(counts = counts,
                           project = "CAF_clean",
