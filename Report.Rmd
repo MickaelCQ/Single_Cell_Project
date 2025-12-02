@@ -13,6 +13,18 @@ output:
     theme: cerulean
     highlight: tango
     df_print: paged
+header-includes:
+  in_header: 
+    - \usepackage{amsmath}
+    - \usepackage{graphicx}
+    - \usepackage{float}
+    - \usepackage{hyperref}
+    - \usepackage{longtable}
+    - \usepackage{booktabs}
+    - \usepackage{array}
+    - \usepackage[french]{babel}
+    - \usepackage[utf8]{inputenc}
+    - \usepackage[T1]{fontenc}
 geometry: margin=1cm
 fontsize: 11pt
 linestretch: 1.15
@@ -40,12 +52,24 @@ options(future.globals.maxSize=10*1024^3) # 10 GB
 
 ```
 
+```{r namespace-fix, message=FALSE, warning=FALSE}
+# Resolve namespace conflicts (ensembldb::filter masks dplyr::filter)
+filter  <- dplyr::filter
+arrange <- dplyr::arrange
+mutate  <- dplyr::mutate   
+select  <- dplyr::select
+```
+
+
 ```{r load, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 " data loading : we load the three datasets corresponding to three different patients' CAF single-cell RNA-seq data. "
 
-p5 <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz", sep="\t")
-p4a <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz", sep="\t")
-p4b <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz", sep="\t")
+p5  <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
+sep="\t")
+p4a <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
+sep="\t")
+p4b <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
+sep="\t")
 
 ```
 
@@ -56,30 +80,35 @@ L'objet de ce travail et de se familiariser avec l'analyse transcriptomique Sing
 We combine the three datasets and map Ensembl IDs to gene symbols and types. the objectif is to filter for protein-coding genes with unique symbols and no missing values.
 ## Pré-processing des données
 ```{r data-preprocessing, results="hide", message=FALSE, warning=FALSE}
-caf.data <- data.matrix(cbind(p5,p4a,p4b))
-ens <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/ensembl-38-108-genes.txt", 
-                sep="\t")
-# map Ensembl IDs to genes symbols and types :
-ens2symb <- setNames(ens$Gene.name, ens$Gene.stable.ID) 
-ens2type <- setNames(ens$Gene.type, ens$Gene.stable.ID)
-symbols <- ens2symb[rownames(caf.data)] # map ensembl IDs to gene symbols
+caf.data <- data.matrix(cbind(p5, p4a, p4b))
 
-# filter for protein-coding genes with unique symbols and no missing values :
-types <- ens2type[rownames(caf.data)] 
-# condition filter is defined here 
-good <- types=="protein_coding" & !is.na(symbols) & !duplicated(symbols) 
-sum(good) # number of genes passing the filter
+# Ensembl mapping
+
+ens <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/ensembl-38-108-genes.txt", sep="\t")
+ens2symb <- setNames(ens$Gene.name, ens$Gene.stable.ID)
+ens2type <- setNames(ens$Gene.type, ens$Gene.stable.ID)
+
+symbols <- ens2symb[rownames(caf.data)]
+types   <- ens2type[rownames(caf.data)]
+
+good <- types == "protein_coding" & !is.na(symbols) & !duplicated(symbols)
 symb <- symbols[good]
-caf.data <- caf.data[good,]
+
+caf.data <- caf.data[good, ]
 rownames(caf.data) <- symb
+
 ```
 
 On crée un premier objet SeuratObject pour tirer profit des routines intégrées à la librairie
 (FindVariableFeatures, ScaleData, RunPCA, etc.):
 
 ```{r create-seurat-object, results="hide", message=FALSE, warning=FALSE}
-caf <- CreateSeuratObject(counts=caf.data, project="cafs",
-                          min.cells=0.01*ncol(caf.data), min.features=1000) 
+caf <- CreateSeuratObject(
+counts = caf.data,
+project = "CAF_raw",
+min.cells = 0.01 * ncol(caf.data),
+min.features = 1000
+)
 #caf
 ```
 
@@ -98,44 +127,40 @@ En combinant ces filtres, on nettoie notre dataset de manière avoir un jeu de c
 de haute qualité.
 
 ```{r qc-filtering, results="hide", message=FALSE, warning=FALSE}
-ensdb.genes <- genes(EnsDb.Hsapiens.v86)# extract from ensdb
-# mito gene from MT chromosome
+# Identify mitochondrial genes
+
+ensdb.genes <- genes(EnsDb.Hsapiens.v86)
 MT.names <- ensdb.genes[seqnames(ensdb.genes) == "MT"]$gene_name
-counts <- GetAssayData(caf, "RNA") # get the count matrix
+counts <- GetAssayData(caf, "RNA")
+umi.tot  <- colSums(counts)
+gene.tot <- colSums(counts > 0)
+mito.pc  <- colSums(counts[rownames(counts) %in% MT.names, ]) / umi.tot * 100
 
-# data for cleaning data next
-umi.tot   <- colSums(counts)
-gene.tot  <- colSums(counts > 0)
-sum(rownames(counts) %in% MT.names)
-
-# percent of mito :
-mito.pc <- colSums(counts[rownames(counts) %in% MT.names, ]) / umi.tot * 100
-bad.high<- umi.tot > 50000 ; bad.low<- gene.tot < 1000 ;bad.mito <- mito.pc > 50
-
-# Disjonction des filtres :
+# Quality filters
+bad.high <- umi.tot > 50000
+bad.low  <- gene.tot < 1000
+bad.mito <- mito.pc > 50
 bad <- bad.high | bad.low | bad.mito
-' # to check the quantity of removed element
-table(bad.high);table(bad.low);table(bad.mito);table(bad)
-'
-# Nettoyage effectif :
-counts <- counts[, !bad] ; counts
+
+# Cleaning
+counts <- counts[, !bad]
 good.genes <- rowSums(counts > 1) >= 0.01 * ncol(counts)
 counts <- counts[good.genes, ]
-dim(counts) #Pour vérifier les dimensions après nettoyage
+dim(counts)
+
 ```
 Nous pouvons visualiser la distribution de la proportion de gènes mitochondriaux, avant nettoyage: 
 
-```{histo, message=FALSE, warning=FALSE}
+```{r histo, message=FALSE, warning=FALSE}
 hist(mito.pc, breaks=50)
+
 ```
 
 Nous mettons à jour notre objet Seurat avec les données nettoyées :
 ```{r update-seurat-object, results='hide', message=FALSE, warning=FALSE}
-caf <- CreateSeuratObject(counts = counts,
-                          project = "CAF_clean",
-                          min.cells = 0,
-                          min.features = 0)
-caf
+caf <- CreateSeuratObject(counts = counts, project = "CAF_clean")
+caf[["percent.mt"]] <- PercentageFeatureSet(caf, pattern = "^MT-")
+
 ```
 
 # Normalisation avec SC Transform.
@@ -146,7 +171,7 @@ La normalisation etant une étape charnière et pouvant grandement changer les r
 - La correction des effets techniques (ici regression des % mitochondriaux).
 Cette méthode est d'après la littérature **la référence Seurat** pour le pré-traitement.
 
-## Le modèle mathématique expliqué.
+## Le modèle mathématique dérrière la normalisation SCTransform
 
 La normalisation SCTransform repose sur un modèle de **régression négative binomiale**.  
 Pour chaque gène \(g\) et chaque cellule \(i\), on suppose : $y_{ig} \sim \text{NB}(\mu_{ig}, \theta_g)$
@@ -170,89 +195,96 @@ Avec cette approche, on à \textit{à priori} un modèle individuel pour chaque 
 
 ## Application de la méthode
 ```{r sctransform, message=FALSE, warning=FALSE}
-# Calcul du pourcentage mitochondrial pour régression
-caf[["percent.mt"]] <- PercentageFeatureSet(
-  caf, pattern = "^MT-"
-)
-# Normalisation moderne SCTransform
 caf <- SCTransform(
-  caf, # applique SCTransform
-  vars.to.regress = "percent.mt", # régresse l'effet des gènes mitochondriaux
-  verbose = TRUE # affiche la progression
-)
+caf,
+vars.to.regress = "percent.mt",
+verbose = TRUE)
 ```
 
 # Réduction de dimension, clustering et visualisation
 Nous procédons à la réduction de dimension via PCA, puis UMAP pour la visualisation. 
 Nous effectuons ensuite le clustering des cellules et identifions les marqueurs de chaque cluster.\\
 
-\textbf{Interprétation PCA:}\\
+## Interprétation PCA\\
 
 ```{r PCA, message=FALSE, warning=FALSE}
 caf <- RunPCA(caf, verbose = FALSE)
 DimPlot(caf, reduction = "pca")
 ```
+La PCA des cellules CAF nettoyées nous montre ici  un nuage diffus sans clusters franchement identifiable. C'est le reflet d’une grande variabilité plutôt que de sous-populations clairement séparées. On peut expliquer cela en partie par  la diversité des CAF, mais ausis par le fait que la PCA capture surtout la variance linéaire qui est dominante. Avant SCTransform, des effets techniques comme la profondeur de séquençage ou le % mitochondrial peuvent encore masquer la structure biologique réelle. Les signatures transcriptionnels typiques des CAF sont ici illustrés par cette dispersion dans l’espace PCA. Cette première exploration nous confirme la qualité  que des méthodes non linéaires (UMAP, t-SNE) sont necessaires pour que nous allions plus loin dans les investigations.
 
-\textbf{Interprétation TSNE:} \\
+## Interprétation de l'ElbowPlot\\
+```{r elbow, message=FALSE, warning=FALSE}
+ElbowPlot(caf)
+```
+Le graphique ElbowPlot nous montre que les 10 premières composantes principales capturent la majorité de la variance significative dans les données (ce qui parait cohérent avec les notions expliquées en cours). Au-delà de ce seuil, l'ajout de composantes supplémentaires contribue peu à l'explication de la variance totale, on à donc un point d'inflexion clair. Par conséquent, nous choisissons d'utiliser les 10 premières dimensions pour les analyses ultérieures telles que UMAP et t-SNE. Cela nous permet donc de capturer la structure transcriptionnelle des CAF sans intégrer trop de bruit.
+
+## Interprétation TSNE \\
+
 ```{r TSNE, message=FALSE, warning=FALSE}
-ncountsTSNE <- RunTSNE(ncounts, dims=1:10 , perplexity=30)
-DimPlot(ncountsTSNE, reduction = "tsne" , label = FALSE )
+caf_tsne <- RunTSNE(caf, dims = 1:10, perplexity = 30)
+DimPlot(caf_tsne, reduction = "tsne")
 ```
+Nous avons vu que le t-SNE est une méthode de réduction non linéaire qui va nous aider à révéler la structure locale des données en essayant de préserver les voisinages cellulaires, contrairement à la PCA qui capture surtout la variance globale (van der Maaten & Hinton, 2008). 
+
+Dans nos caf nettoyés , il va nous permettent d’explorer d’éventuels sous-types tels que les myofibroblast-like ou immunomodulatory CAF (Elyada et al., 2019), ainsi que d’identifier d’éventuels signatures transcriptionnelles de cette population très plastique. En faisant un peu de bibliographie, nous avons cru comprendre que les CAF forment souvent des trajectoires continues plutôt que des clusters séparés, le t-SNE diffus que nous avons iciavec des amas pas clairement délimités est cohérent biologiquement avec ce que nous avons pu lire (Ohlund et al., 2017 - Helms et al., 2022).
+Cette absence de clusters bien définis n'est dont à priori pas un problème technique, mais la nature graduelle et hétérogène des CAF dans l'environnement tumoral. En complément de notre PCA et de l'elbow plot, le t-SNE consolide cette idée  d’une organisation continue de cette population fibroblastique. Dans notre démarche pour distinguer des vrais clusters il faut aller donc plus loin.
 
 
-\textbf{Interprétation UMAP:} \\
+## Interprétation UMAP et clustering:  \\
 ```{r UMAP, message=FALSE, warning=FALSE}
-ncountsUMAP <- RunUMAP(ncounts, dims=1:10)
-DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
+caf_umap <- RunUMAP(caf, dims = 1:10)
+caf_umap <- FindNeighbors(caf_umap, dims = 1:10)
+caf_umap <- FindClusters(caf_umap, resolution = 0.1)
 
-ncountsUMAP<-FindNeighbors(ncountsUMAP,dims=1:10)
-ncountsUMAP <- FindClusters ( ncountsUMAP , resolution =0.1)
-
-ncountsUMAP.markers <- FindAllMarkers ( ncountsUMAP , only.pos = TRUE , min.pct =0.25 ,
-                                   logfc.threshold =0.25)
-ncountsUMAP.markers %>%
-  group_by ( cluster ) %>%
-  slice_max ( n =2 , order_by = avg_log2FC )
+DimPlot(caf_umap, reduction = "umap", label = TRUE)
 ```
-
 
 \textbf{Interprétation Clustering:} \\
 
 Chaque ligne correspond à une famille d'origine différente.
 La première représente les VSMC, la seconde ligne correspont a HSC, la troisième ligne représente lesSAMes
-```{r Gene d'intéret, message=FALSE, warning=FALSE}
+```{r Genes_interets, message=FALSE, warning=FALSE}
 signatureGene <- c(
   "PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
   "PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
-  "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"
-)
+  "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")
 ```
 
 
 ```{r marqueur, message=FALSE, warning=FALSE}
-signatureGeneMarker <- ncountsUMAP.markers %>%
-  dplyr::filter(gene %in% signatureGene)
-signatureGeneMarker$gene <- factor(signatureGeneMarker$gene, levels = signatureGene)
+caf_markers <- FindAllMarkers(
+caf_umap,
+only.pos = TRUE,
+min.pct  = 0.25,
+logfc.threshold = 0.25)
 
-signatureGeneMarker <- signatureGeneMarker %>%
-  arrange(gene)
+caf_markers %>% group_by(cluster) %>% slice_max(n = 2, order_by = avg_log2FC)
 ```
+
+```{r sign,message= FALSE , warning=FALSE}
+signatureGene <- c(
+"PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
+"PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
+"FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")
+
+signatureGeneMarker <- caf_markers %>%
+filter(gene %in% signatureGene) %>%
+mutate(gene = factor(gene, levels = signatureGene)) %>%
+arrange(gene)
+```
+
 
 
 ```{r graphique, message=FALSE, warning=FALSE}
-DoHeatmap(ncountsUMAP, features = signatureGene) + NoLegend()
+DoHeatmap(caf_umap, features = signatureGene) + NoLegend()
 
-DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
-FeaturePlot (ncountsUMAP, features = c ("PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11")) # 6 for each gene
-FeaturePlot (ncountsUMAP, features = c ("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2")) # 6 for each gene
-FeaturePlot (ncountsUMAP, features = c ("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")) # 6 for each gene
+# UMAP clusters
+DimPlot(caf_umap, reduction = "umap", label = TRUE)
+
+# FeaturePlots par famille
+FeaturePlot(caf_umap, features = c("PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11"))
+FeaturePlot(caf_umap, features = c("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2"))
+FeaturePlot(caf_umap, features = c("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"))
+
 ```
-
-
-
-Remarques du prof : 
-
-Toutes les cellules sont des cafs, mais il existe plusieurs sous populations. Si on prends des marqueurs de certains CAFS, probablement ils vont sortir un peu partout, par contre il y'a un peu de différences dans les sous populations. Ce qu'on essaye de coprendre ici c'est les différences entre les CAFS. Ca veut dire on va chercher les genes qui sont dans chaque cluster, et avec cette listes on va voir si il y'a des signatures transcriptionnelles particuleires. C'est des CAF avec ce phénotype, c'est des CAF avec ce phénotypes ...... 
-
-Pour faire cela il faut prendre n gènes squi sont les plus exprimés dans chaque cluster. 
-n va utiliser la fonction FindAllMarkers de Seurat pour faire cela. Ce qui est intéressant c'est que Seurat quand on à des données spatiales il nous permet de regarder., par exemple, l'expression d'un gène dans chaque cluster. 
