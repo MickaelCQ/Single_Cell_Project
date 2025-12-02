@@ -124,6 +124,7 @@ ncounts <- ScaleData(ncounts)
 # realizing the pca for the data
 ncounts <- RunPCA(ncounts, npcs = 100, features = VariableFeatures(ncounts))
 DimPlot(ncounts, reduction = "pca")
+ElbowPlot(ncounts, ndims = 100)
 
 # pca is needed for realising the tsne
 ncountsTSNE <- RunTSNE(ncounts, dims=1:10 , perplexity=30)
