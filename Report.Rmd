@@ -235,7 +235,7 @@ Cette absence de clusters bien définis n'est dont à priori pas un problème te
 ```{r UMAP, message=FALSE, warning=FALSE}
 caf_umap <- RunUMAP(caf, dims = 1:10)
 caf_umap <- FindNeighbors(caf_umap, dims = 1:10)
-caf_umap <- FindClusters(caf_umap, resolution = 0.1)
+caf_umap <- FindClusters(caf_umap, resolution = 0.0.75)
 
 DimPlot(caf_umap, reduction = "umap", label = TRUE)
 ```
