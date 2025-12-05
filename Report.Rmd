@@ -3,16 +3,16 @@ title: "CAF Single cell Transcriptomics Analysis"
 author: "Mickael Coquerelle & Loik Galtier"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     toc: true
     toc_depth: 3
     theme: cerulean
     highlight: tango
     df_print: paged
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 header-includes:
   in_header: 
     - \usepackage{amsmath}
@@ -235,7 +235,7 @@ Cette absence de clusters bien définis n'est dont à priori pas un problème te
 ```{r UMAP, message=FALSE, warning=FALSE}
 caf_umap <- RunUMAP(caf, dims = 1:10)
 caf_umap <- FindNeighbors(caf_umap, dims = 1:10)
-caf_umap <- FindClusters(caf_umap, resolution = 0.0.75)
+caf_umap <- FindClusters(caf_umap, resolution = 0.075)
 
 DimPlot(caf_umap, reduction = "umap", label = TRUE)
 ```
