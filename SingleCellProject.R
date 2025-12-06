@@ -136,7 +136,7 @@ DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
 
 
 ncountsUMAP<-FindNeighbors(ncountsUMAP,dims=1:10)
-ncountsUMAP <- FindClusters ( ncountsUMAP , resolution =0.1)
+ncountsUMAP <- FindClusters ( ncountsUMAP , resolution =0.15)
 
 
 
@@ -145,6 +145,7 @@ ncountsUMAP.markers <- FindAllMarkers ( ncountsUMAP , only.pos = TRUE , min.pct 
 ncountsUMAP.markers %>%
   group_by ( cluster ) %>%
   slice_max ( n =2 , order_by = avg_log2FC )
+DimPlot(ncountsUMAP, reduction = "umap" , label=TRUE )
 
 
 signatureGene <- c(

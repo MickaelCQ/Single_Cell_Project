@@ -235,21 +235,30 @@ Cette absence de clusters bien définis n'est dont à priori pas un problème te
 ```{r UMAP, message=FALSE, warning=FALSE}
 caf_umap <- RunUMAP(caf, dims = 1:10)
 caf_umap <- FindNeighbors(caf_umap, dims = 1:10)
-caf_umap <- FindClusters(caf_umap, resolution = 0.075)
+caf_umap <- FindClusters(caf_umap, resolution = 0.15)
 
 DimPlot(caf_umap, reduction = "umap", label = TRUE)
 ```
 
+La derniérer méthode que nous avons utiliser est UMAP. "Uniform Manifold Approximation and Projection" (UMAP) se base aussi sur la PCA et permet la réduction de la dimension comme T-sne, mais dans de nombreux cas, en mieux.
+
+
+
 \textbf{Interprétation Clustering:} \\
 
 Chaque ligne correspond à une famille d'origine différente.
-La première représente les VSMC, la seconde ligne correspont a HSC, la troisième ligne représente lesSAMes
+La première représente les VSMC, la seconde ligne correspont a SAMes, la troisième ligne représente les HSC
 ```{r Genes_interets, message=FALSE, warning=FALSE}
 signatureGene <- c(
   "PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
   "PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
   "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")
 ```
+Les VSMC ("*Vascular Smooth Muscle Cells*") sont donc les cellules musculaire lisse vasculaire, consituant la paroi des vaisseaux sanguin et du coeur. Si l'expression des VSMC est forte, cela suppose une CAF myofibroblastiques d'origine (peri)vasculaire (Chen et al., 2021).
+Les HSC ("*Hepatic Stellate Cells*") sont des cellules 'étoilé' présentes dans le foie, dans l'espace de Disse. Lors d'un traumatisme, elles peuvent produire du collagéne. Si l'expression est forte, cela peut indiquer un cancer du foie et un CAF pro-tumorigéniques d'origine HSC (Affò et al., 2013)
+Les SAMes sont des cellules regroupant les fibroplastes et les mesenchymales qui se trouvent dans le foie. Si l'expression est forte, cela suppose une origine cicatriciel (https://doi.org/10.1073/pnas.140006211) )(https://www.mdpi.com/1422-0067/20/7/1723)#a revoir
+
+
 
 
 ```{r marqueur, message=FALSE, warning=FALSE}
@@ -288,3 +297,9 @@ FeaturePlot(caf_umap, features = c("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2")
 FeaturePlot(caf_umap, features = c("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"))
 
 ```
+
+Dans le cluster 0, la présence d'expression pour les génes VSMC et du HSC, mais pas de SAMes suppose qu'il y as une double origine ?
+Dans le cluster 1, la présence d'expression pour les génes SAMes mais pas des autres suppose une origine des fibroplastes et des mesenchymateux.
+
+
+
