@@ -173,7 +173,7 @@ caf[["percent.mt"]] <- PercentageFeatureSet(caf, pattern = "^MT-")
 ```
 
 # Normalisation avec SC Transform.
-La normalisation etant une étape charnière et pouvant grandement changer les résultats finaux en Single-Cell. Nous avons choisi ici d'exploiter les fonctionnalités de normalisation de la librairie Seurat. Plutôt qu’une normalisation CPM (par millions) ou LogNormalize, nous appliquons ici **SCTransform**, une méthode plus moderne et robuste, qui est construite sur un modèle négatif binomial (Hafemeister & Satija, 2019). De ce que nous en avons compris, une telle approche va agir sur plusieurs aspects : 
+La normalisation etant une étape charnière et pouvant grandement changer les résultats finaux en Single-Cell. Nous avons choisi ici d'exploiter les fonctionnalités de normalisation de la librairie Seurat. Plutôt qu'une normalisation CPM (par millions) ou LogNormalize, nous appliquons ici **SCTransform**, une méthode plus moderne et robuste, qui est construite sur un modèle négatif binomial (Hafemeister & Satija, 2019). De ce que nous en avons compris, une telle approche va agir sur plusieurs aspects : 
 - La normalisation par profondeur de séquençage,  
 - La stabilisation de variance,  
 - La sélection des gènes variables,  
@@ -220,7 +220,7 @@ Nous effectuons ensuite le clustering des cellules et identifions les marqueurs 
 caf <- RunPCA(caf, verbose = FALSE)
 DimPlot(caf, reduction = "pca")
 ```
-La PCA des cellules CAF nettoyées nous montre ici  un nuage diffus sans clusters franchement identifiable. C'est le reflet d’une grande variabilité plutôt que de sous-populations clairement séparées. On peut expliquer cela en partie par  la diversité des CAF, mais ausis par le fait que la PCA capture surtout la variance linéaire qui est dominante. Avant SCTransform, des effets techniques comme la profondeur de séquençage ou le % mitochondrial peuvent encore masquer la structure biologique réelle. Les signatures transcriptionnels typiques des CAF sont ici illustrés par cette dispersion dans l’espace PCA. Cette première exploration nous confirme la qualité  que des méthodes non linéaires (UMAP, t-SNE) sont necessaires pour que nous allions plus loin dans les investigations.
+La PCA des cellules CAF nettoyées nous montre ici  un nuage diffus sans clusters franchement identifiable. C'est le reflet d'une grande variabilité plutôt que de sous-populations clairement séparées. On peut expliquer cela en partie par  la diversité des CAF, mais ausis par le fait que la PCA capture surtout la variance linéaire qui est dominante. Avant SCTransform, des effets techniques comme la profondeur de séquençage ou le % mitochondrial peuvent encore masquer la structure biologique réelle. Les signatures transcriptionnels typiques des CAF sont ici illustrés par cette dispersion dans l'espace PCA. Cette première exploration nous confirme la qualité  que des méthodes non linéaires (UMAP, t-SNE) sont necessaires pour que nous allions plus loin dans les investigations.
 
 ## Interprétation de l'ElbowPlot\\
 ```{r elbow, message=FALSE, warning=FALSE}
@@ -236,8 +236,8 @@ DimPlot(caf_tsne, reduction = "tsne")
 ```
 Nous avons vu que le t-SNE est une méthode de réduction non linéaire qui va nous aider à révéler la structure locale des données en essayant de préserver les voisinages cellulaires, contrairement à la PCA qui capture surtout la variance globale (van der Maaten & Hinton, 2008). 
 
-Dans nos caf nettoyés , il va nous permettent d’explorer d’éventuels sous-types tels que les myofibroblast-like ou immunomodulatory CAF (Elyada et al., 2019), ainsi que d’identifier d’éventuels signatures transcriptionnelles de cette population très plastique. En faisant un peu de bibliographie, nous avons cru comprendre que les CAF forment souvent des trajectoires continues plutôt que des clusters séparés, le t-SNE diffus que nous avons iciavec des amas pas clairement délimités est cohérent biologiquement avec ce que nous avons pu lire (Ohlund et al., 2017 - Helms et al., 2022).
-Cette absence de clusters bien définis n'est dont à priori pas un problème technique, mais la nature graduelle et hétérogène des CAF dans l'environnement tumoral. En complément de notre PCA et de l'elbow plot, le t-SNE consolide cette idée  d’une organisation continue de cette population fibroblastique. Dans notre démarche pour distinguer des vrais clusters il faut aller donc plus loin.
+Dans nos caf nettoyés , il va nous permettent d'explorer d'éventuels sous-types tels que les myofibroblast-like ou immunomodulatory CAF (Elyada et al., 2019), ainsi que d'identifier d'éventuels signatures transcriptionnelles de cette population très plastique. En faisant un peu de bibliographie, nous avons cru comprendre que les CAF forment souvent des trajectoires continues plutôt que des clusters séparés, le t-SNE diffus que nous avons iciavec des amas pas clairement délimités est cohérent biologiquement avec ce que nous avons pu lire (Ohlund et al., 2017 - Helms et al., 2022).
+Cette absence de clusters bien définis n'est dont à priori pas un problème technique, mais la nature graduelle et hétérogène des CAF dans l'environnement tumoral. En complément de notre PCA et de l'elbow plot, le t-SNE consolide cette idée  d'une organisation continue de cette population fibroblastique. Dans notre démarche pour distinguer des vrais clusters il faut aller donc plus loin.
 
 
 ## Interprétation UMAP et clustering:  \\
@@ -249,25 +249,23 @@ caf_umap <- FindClusters(caf_umap, resolution = 0.155)
 DimPlot(caf_umap, reduction = "umap", label = TRUE)
 ```
 
-La derniérer méthode que nous avons utiliser est UMAP. "Uniform Manifold Approximation and Projection" (UMAP) se base aussi sur la PCA et permet la réduction de la dimension comme T-sne, mais dans de nombreux cas, en mieux.
-
-
+La dernièreméthode que nous avons utiliser est UMAP. "Uniform Manifold Approximation and Projection" (UMAP) se base aussi sur la PCA et permet la réduction de la dimension comme T-SNE. Notons qu' UMAP est plus efficace pour préserver à la fois des structures locales ET globale des données, ce qui se révèle interessant si on chercher à capturer des relations complexes entre les cellules CAF (McInnes et al., 2018: https://arxiv.org/pdf/1802.03426). En appliquant UMAP à nos données CAF nettoyées, nous avons pu visualiser des regroupements cellulaires  mieux séparées par rapport au t-SNE. Ces clusters à brûle-pourpoint permettent d'apercevoir des sous-populations au sein des CAF, en se renseignant brièvement dans la littérature, on peut logiquement poser l'hypothèse  qu'elles sont liées à des fonctions biologiques spécifiques telles que le remodelage de la matrice extracellulaire ou l'immunomodulation (Kalluri, 2016 :10.1038/nrc.2016.73)
 
 \textbf{Interprétation Clustering:} \\
 
 Chaque ligne correspond à une famille d'origine différente.
 La première représente les VSMC, la seconde ligne correspont a SAMes, la troisième ligne représente les HSC
+
 ```{r Genes_interets, message=FALSE, warning=FALSE}
 signatureGene <- c(
   "PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11",
   "PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2",
   "FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2")
 ```
-Les VSMC ("*Vascular Smooth Muscle Cells*") sont donc les cellules musculaire lisse vasculaire, consituant la paroi des vaisseaux sanguin et du coeur. Si l'expression des VSMC est forte, cela suppose une CAF myofibroblastiques d'origine (peri)vasculaire (Chen et al., 2021).
-Les HSC ("*Hepatic Stellate Cells*") sont des cellules 'étoilé' présentes dans le foie, dans l'espace de Disse. Lors d'un traumatisme, elles peuvent produire du collagéne. Si l'expression est forte, cela peut indiquer un cancer du foie et un CAF pro-tumorigéniques d'origine HSC (Affò et al., 2013)
-Les SAMes sont des cellules regroupant les fibroplastes et les mesenchymales qui se trouvent dans le foie. Si l'expression est forte, cela suppose une origine cicatriciel (https://doi.org/10.1073/pnas.140006211) )(https://www.mdpi.com/1422-0067/20/7/1723)#a revoir
+Les VSMC ("*Vascular Smooth Muscle Cells*") sont comme leur nom l'indique des cellules du muscle lisse vasculaire , constituant la paroi des vaisseaux sanguin et du coeur. Si l'expression des VSMC est forte, cela suppose une CAF myofibroblastiques d'origine (peri)vasculaire.
 
-
+Les HSC ("*Hepatic Stellate Cells*") sont des cellules "étoilé" présentes dans le foie, dans l'espace de Disse. Lors d'un traumatisme, elles peuvent produire du collagène. Si l'expression est forte, cela pourrait indiquer un cancer du foie et un CAF pro-tumorigéniques d'origine HSC (Affò et al., 2013)
+Les SAMes sont des cellules regroupant les fibroplastes et les mesenchymales qui se trouvent dans le foie. Si l'expression est forte, cela suppose une origine cicatriciel (https://doi.org/10.1073/pnas.140006211) )(https://www.mdpi.com/1422-0067/20/7/1723)
 
 
 ```{r marqueur, message=FALSE, warning=FALSE}
@@ -299,7 +297,6 @@ arrange(gene)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(dplyr)
-
 
 all_genes <- rownames(caf_umap)
 
@@ -347,8 +344,6 @@ for(cl in cluster_list)
     enrich_results[[as.character(cl)]] <- ego_sig
   }
   
-  
-  
 }
 
 
@@ -359,26 +354,37 @@ for (cl in names(enrich_results)) {
 
 ```
 
-
-
-
 ```{r graphique, message=FALSE, warning=FALSE}
 DoHeatmap(caf_umap, features = signatureGene) + NoLegend()
+```
+L'analyse de l'expression des gènes représentée à l'aide de la Heatmap vu en cours nous permet de mettre en évidence une hétérogénéité transcriptionnelle notable au sein des fibroblastes cancéreux. 
 
-# UMAP clusters
-DimPlot(caf_umap, reduction = "umap", label = TRUE)
+Plusieurs sous-populations émergent avec des profils d'expression distincts, cela vient consolider l'idée comme pour la l'UMAP que les cellules ne constituent pas un bloc fonctionnel homogène mais plutôt un ensemble de programmes d'activation différenciés, cette constatation plus intuitive sur la Heatmap que le graphique précédent. Nous avons des signatures sans équivoques et d'autres plus surprenantes, regardons un peu plus en détail.
 
+**Cluster 0**, l'hypothèse des CAF neuro-endocrine et VSMC-like
+On a ici une expression franche de FABP5, HIGD1B, AGT, RGS5, CPE, SSTR2, combinant marqueurs contractiles, sécrétoires et métaboliques. RGS5 et SSTR2 suggèrent une origine périvasculaire des cellules (des péricytes), tandis qu'on peut se dire qu' AGT et CPE signe un  potentiel rôle paracrine/hormonal  des cellules dans la modulation vasculaire et/ou immunitaire. Au regard de nos (maigres) connaissances  sur les CAF, nous pensons que ce premier  cluster illustre une grande plasticité des CAF pour s'adapter à l'environnement. (Guo et Xu, 2024: DOI:10.1007/s10555-024-10186-7)
+
+**Cluster 1** , CAF ECM-remodeling
+PTGDS, FBLN1, DCN, LUM, COL1A1, LTBP2 indiquent une activité dominante de production et d'organisation de la matrice extracellulaire. Ce phénotype, est typique des CAF dit "matrix-remodeling", contribue à la rigidification stromale et contribue à l'invasion tumorale.(Belhabib et al.,2021 : DOI : 10.3390/cancers13143466)
+
+**Cluster 2**, CAF contractile et VSMC-like
+PLN, SORBS2, PHLDA2, SNCG, MT1M, MYH11 reflètent un phénotype contractile proche des cellules musculaires lisses. Ces CAF, semblables à des myCAFs ou d'origine vasculaire, pourraient remodeler mécaniquement la matrice et influencer la prolifération anarchique des cellules et donc la perfusion tumoral, pour se répendre.
+
+**Cluster 3** et CAF mixte / ECM-remodeling + métabolique
+Pour ce dernier cluster, nous avons les gènes les plus exprimés DCN, LUM, COL1A1, LTBP2, FABP5, nous pensons qu'il s'agit ici d'un état, disons, intermédiaire : une production de matrice combinée à une adaptation métabolique, c'est peut être une population intermédiaire qui permet de répondre aux signaux du microenvironnement (https://pubmed.ncbi.nlm.nih.gov/40940809/).
+
+Pour conclure sur cette stratification nous voulons ajouter quelques limites qui sont selon nous à intégrer pour interpréter avec prudence ce graphique (et les précédents). La mise en évidence de sous-types repose sur les gènes sélectionnés et sur des algorithmes de réduction dimensionnelle, ce qui limite le champ d'étude à nos choix personnels (soit dit en passant peut être pas les plus pertinents) .
+
+Par ailleurs, en fin de cours vous nous avez mentionné que l'expression génique ne préjuge pas directement (forcément) de l'activité fonctionnelle in vivo, et une validation par des analyses complémentaires du type  signalisation ligand-récepteur, ou encore données protéomiques, serait nécessaire pour consolider nos observations et dépasser, évidemment, l'approche exploratoire que nous avons ici.
+
+Pour conclure, nous pensons malgré tout que  cette visualisation est une photographie assez pertinente de l'hétérogénéité des CAF,  sans pour autant nier l'importance d'approches intégratives pour comprendre son rôle dans le microenvironnement tumoral.
+
+```{r FeaturePlots, message=FALSE, warning=FALSE}
 # FeaturePlots par famille
 FeaturePlot(caf_umap, features = c("PLN","SORBS2","PHLDA2","SNCG","MT1M","MYH11"))
 FeaturePlot(caf_umap, features = c("PTGDS","FBLN1","DCN","LUM","COL1A1","LTBP2"))
 FeaturePlot(caf_umap, features = c("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"))
-
 ```
-
-Dans le cluster 0, la présence d'expression pour les génes VSMC et du HSC, mais pas de SAMes, suppose qu'il y as une double origine ?
-Dans le cluster 1, la présence d'expression pour les génes SAMes mais pas des autres suppose une origine des fibroplastes et des mesenchymateux.
-Dans le cluster 2, Ressemnlant au cluster 1, a la différence d'une baisse d'expression pour les génes PTGDS et FBLN1.
-Dans le cluster 3, posséde une grande expression pour les génes de HSC seulement.
 
 
 
