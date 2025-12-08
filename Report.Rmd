@@ -302,4 +302,3 @@ Dans le cluster 0, la présence d'expression pour les génes VSMC et du HSC, mai
 Dans le cluster 1, la présence d'expression pour les génes SAMes mais pas des autres suppose une origine des fibroplastes et des mesenchymateux.
 
 
-
