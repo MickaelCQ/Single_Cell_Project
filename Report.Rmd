@@ -3,16 +3,16 @@ title: "CAF Single cell Transcriptomics Analysis"
 author: "Mickael Coquerelle & Loik Galtier"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     toc: true
     toc_depth: 3
     theme: cerulean
     highlight: tango
     df_print: paged
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 header-includes:
   in_header: 
     - \usepackage{amsmath}
@@ -307,7 +307,10 @@ FeaturePlot(caf_umap, features = c("FABP5","HIGD1B","AGT","RGS5","CPE","SSTR2"))
 
 ```
 
-Dans le cluster 0, la présence d'expression pour les génes VSMC et du HSC, mais pas de SAMes suppose qu'il y as une double origine ?
+Dans le cluster 0, la présence d'expression pour les génes VSMC et du HSC, mais pas de SAMes, suppose qu'il y as une double origine ?
 Dans le cluster 1, la présence d'expression pour les génes SAMes mais pas des autres suppose une origine des fibroplastes et des mesenchymateux.
+Dans le cluster 2, Ressemnlant au cluster 1, a la différence d'une baisse d'expression pour les génes PTGDS et FBLN1.
+Dans le cluster 3, posséde une grande expression pour les génes de HSC seulement.
+
 
 
