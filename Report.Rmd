@@ -64,11 +64,19 @@ select  <- dplyr::select
 ```{r load, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 " data loading : we load the three datasets corresponding to three different patients' CAF single-cell RNA-seq data. "
 
-p5  <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
+'p5  <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
 sep="\t")
 p4a <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
 sep="\t")
 p4b <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
+sep="\t")'
+
+
+p5  <- read.csv("~/Documents/git/Single_Cell_Project/Data/GSM4805570_CountsMatrix_20G00953M_TN.txt.gz",
+sep="\t")
+p4a <- read.csv("~/Documents/git/Single_Cell_Project/Data/GSM4805568_CountsMatrix_19G02977B_TN.txt.gz",
+sep="\t")
+p4b <- read.csv("~/Documents/git/Single_Cell_Project/Data/GSM4805566_CountsMatrix_19G02977A_TN.txt.gz",
 sep="\t")
 
 ```
@@ -83,8 +91,9 @@ We combine the three datasets and map Ensembl IDs to gene symbols and types. the
 caf.data <- data.matrix(cbind(p5, p4a, p4b))
 
 # Ensembl mapping
-
-ens <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/ensembl-38-108-genes.txt", sep="\t")
+'
+ens <- read.csv("~/Projets_GIT/Single_Cell_Project/Data/ensembl-38-108-genes.txt", sep="\t")'
+ens <- read.csv("~/Documents/git/Single_Cell_Project/Data/ensembl-38-108-genes.txt", sep="\t")
 ens2symb <- setNames(ens$Gene.name, ens$Gene.stable.ID)
 ens2type <- setNames(ens$Gene.type, ens$Gene.stable.ID)
 
